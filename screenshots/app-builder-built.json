@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8081/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "RCForb Listen",
+      "hasCanvas": false,
+      "bodyTextLen": 17317,
+      "bodyTextHash": "7d6db009acc74718cf6185659606b73b968c57c460596991a54b9687e6a2ed56",
+      "bodyTextPrefix": "RCFORB Listen A guest receiver for public RemoteHams stations. Y",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "RCForb Listen",
+      "hasCanvas": false,
+      "bodyTextLen": 17317,
+      "bodyTextHash": "7d6db009acc74718cf6185659606b73b968c57c460596991a54b9687e6a2ed56",
+      "bodyTextPrefix": "RCFORB Listen A guest receiver for public RemoteHams stations. Y",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-built.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}

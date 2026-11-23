@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="RCForb Listen">
+  <rect width="32" height="32" rx="6" fill="#101410"/>
+  <path d="M5.5 23.5a10.6 10.6 0 0 1 21 0" fill="none" stroke="#8d9a8e" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M16 22.8 24 9.2" fill="none" stroke="#f0a202" stroke-width="3.4" stroke-linecap="round"/>
+  <circle cx="16" cy="22.8" r="2.4" fill="#f0a202"/>
+</svg>
