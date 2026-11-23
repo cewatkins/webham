@@ -1,9 +1,9 @@
 import { i as __toESM, n as __exportAll } from "../_runtime.mjs";
 import { K as require_react, _ as createFileRoute, b as require_jsx_runtime, d as Scripts, f as HeadContent, g as lazyRouteComponent, h as Outlet, m as createRouter, v as createRootRoute, y as useRouter } from "../_libs/@tanstack/react-router+[...].mjs";
-import { t as TriangleAlert } from "../_libs/lucide-react.mjs";
+import { r as TriangleAlert } from "../_libs/lucide-react.mjs";
 import { a as union, i as string, n as number, r as object, t as literal } from "../_libs/zod.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-p-2Lkabs.js
-var router_p_2Lkabs_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
+//#region node_modules/.nitro/vite/services/ssr/assets/router-dVm3Vsn9.js
+var router_dVm3Vsn9_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var FALLBACK_MESSAGE = "An unexpected error occurred. Try reloading the page.";
@@ -331,9 +331,9 @@ function PreviewHostBridge() {
 	}, [router]);
 	return null;
 }
-var styles_default = "/assets/styles-CBh75rvR.css";
+var styles_default = "/assets/styles-BD-tIg6l.css";
 var APP_NAME = "RCForb Listen";
-var Route$3 = createRootRoute({
+var Route$4 = createRootRoute({
 	head: () => ({
 		meta: [
 			{ charSet: "utf-8" },
@@ -389,9 +389,9 @@ var Route$3 = createRootRoute({
 		] })]
 	})
 });
-var $$splitComponentImporter = () => import("./routes-Bp40FJSV.mjs");
-var Route$2 = createFileRoute("/")({ component: lazyRouteComponent($$splitComponentImporter, "component") });
-var Route$1 = createFileRoute("/api/directory")({ server: { handlers: { GET: async () => {
+var $$splitComponentImporter = () => import("./routes-C3FSmnsz.mjs");
+var Route$3 = createFileRoute("/")({ component: lazyRouteComponent($$splitComponentImporter, "component") });
+var Route$2 = createFileRoute("/api/directory")({ server: { handlers: { GET: async () => {
 	try {
 		const { loadDirectory } = await import("./directory.server-Pl5LKuh7.mjs");
 		const entries = await loadDirectory();
@@ -400,28 +400,37 @@ var Route$1 = createFileRoute("/api/directory")({ server: { handlers: { GET: asy
 		return Response.json({ error: "The public station list could not be loaded." }, { status: 502 });
 	}
 } } } });
-var Route = createFileRoute("/api/listen")({ server: { handlers: { POST: async ({ request }) => {
-	const { handleListen } = await import("./listen-handler.server-_sy6vR9x.mjs");
+var Route$1 = createFileRoute("/api/listen")({ server: { handlers: { POST: async ({ request }) => {
+	const { handleListen } = await import("./listen-handler.server-DCZZOktw.mjs");
 	return handleListen(request);
 } } } });
+var Route = createFileRoute("/api/listen-command")({ server: { handlers: { POST: async ({ request }) => {
+	const { handleListenCommand } = await import("./listen-command.server-Bz_dpdqZ.mjs");
+	return handleListenCommand(request);
+} } } });
 var rootRouteChildren = {
-	IndexRoute: Route$2.update({
+	IndexRoute: Route$3.update({
 		id: "/",
 		path: "/",
-		getParentRoute: () => Route$3
+		getParentRoute: () => Route$4
 	}),
-	ApiDirectoryRoute: Route$1.update({
+	ApiDirectoryRoute: Route$2.update({
 		id: "/api/directory",
 		path: "/api/directory",
-		getParentRoute: () => Route$3
+		getParentRoute: () => Route$4
 	}),
-	ApiListenRoute: Route.update({
+	ApiListenRoute: Route$1.update({
 		id: "/api/listen",
 		path: "/api/listen",
-		getParentRoute: () => Route$3
+		getParentRoute: () => Route$4
+	}),
+	ApiListenCommandRoute: Route.update({
+		id: "/api/listen-command",
+		path: "/api/listen-command",
+		getParentRoute: () => Route$4
 	})
 };
-var routeTree = Route$3._addFileChildren(rootRouteChildren)._addFileTypes();
+var routeTree = Route$4._addFileChildren(rootRouteChildren)._addFileTypes();
 function getRouter() {
 	return createRouter({
 		routeTree,
@@ -430,4 +439,4 @@ function getRouter() {
 	});
 }
 //#endregion
-export { getRouter, router_p_2Lkabs_exports as t };
+export { getRouter, router_dVm3Vsn9_exports as t };

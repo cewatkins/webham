@@ -1,6 +1,8 @@
 import net from "node:net";
 
 import { ControlLineReader, V07FrameReader, dotnetTicks, imaPacket } from "./framing";
+import { registerSession, dropSession, type LiveSession } from "./live-sessions.server";
+import { buildSessionPacket } from "./session-packet";
 import { SpeexStreamDecoder } from "./speex.server";
 import { RadioStateStore } from "./state";
 import type { ListenEvent, ListenStats } from "./types";
@@ -19,6 +21,7 @@ export type GuestSessionOptions = {
   controlPort: number;
   audioPort: number;
   signal: AbortSignal;
+  credentials: { user: string; passwordMd5: string } | null;
   emit: (outbound: Outbound) => void;
 };
 
@@ -105,11 +108,12 @@ function writeSocket(socket: net.Socket, bytes: Uint8Array): Promise<void> {
 }
 
 /**
- * Receive-only guest. The only bytes written are `get id`, `set protocol rcs`,
- * the two control keepalives, and the IMA liveness packet.
+ * Guest listen, plus an optional RemoteHams login used only for text chat.
+ * With no credentials the bytes on the wire stay `get id`, `set protocol rcs`,
+ * the two keepalives, and the IMA packet. Tuning and transmit are never written.
  */
 export async function runGuestSession(options: GuestSessionOptions): Promise<void> {
-  const { host, controlPort, audioPort, signal } = options;
+  const { host, controlPort, audioPort, signal, credentials } = options;
   const state = new RadioStateStore();
   const lines = new AsyncQueue<string>();
   const frames = new AsyncQueue<Uint8Array>();
@@ -126,6 +130,41 @@ export async function runGuestSession(options: GuestSessionOptions): Promise<voi
   let lastFrames = 0;
   let accept = true;
   let sendChain = Promise.resolve();
+  let awaitingAuth = false;
+  let loginStarted = false;
+  const pendingAudio: Uint8Array[] = [];
+  let audioReady = false;
+  let lastChatAt = 0;
+
+  const writeAudio = (bytes: Uint8Array) => {
+    if (!audioReady || !audio) {
+      pendingAudio.push(bytes);
+      return;
+    }
+    enqueueWrite(audio, bytes);
+  };
+
+  const session: LiveSession = {
+    id: crypto.randomUUID(),
+    authorised: false,
+    user: "",
+    async login(user, passwordMd5) {
+      loginStarted = true;
+      session.user = user;
+      session.authorised = false;
+      awaitingAuth = true;
+      emitJson({ type: "auth", state: "authenticating", message: user });
+      await sendControl(`login ${user} ${passwordMd5}`);
+      writeAudio(buildSessionPacket(user, passwordMd5));
+    },
+    async sendChat(text) {
+      if (!session.authorised) throw new Error("Sign in before sending chat.");
+      const now = Date.now();
+      if (now - lastChatAt < 400) throw new Error("Wait a moment before the next line.");
+      lastChatAt = now;
+      await sendControl(`post::chat::${text}`);
+    },
+  };
 
   const emitJson = (event: ListenEvent) => {
     if (!accept) return;
@@ -170,7 +209,9 @@ export async function runGuestSession(options: GuestSessionOptions): Promise<voi
       });
   };
 
-  const sendControl = (command: string): Promise<void> => {
+  const earlyControl: string[] = [];
+  let controlReady = false;
+  const sendControlNow = (command: string): Promise<void> => {
     if (!control) return Promise.resolve();
     const bytes = Buffer.from(`${command}\n`, "utf8");
     const pending = sendChain.then(() => writeSocket(control as net.Socket, bytes));
@@ -179,6 +220,18 @@ export async function runGuestSession(options: GuestSessionOptions): Promise<voi
       control?.destroy();
     });
     return pending;
+  };
+  const sendControl = (command: string): Promise<void> => {
+    if (!controlReady) {
+      earlyControl.push(command);
+      return Promise.resolve();
+    }
+    return sendControlNow(command);
+  };
+
+  const maybeLogin = () => {
+    if (!credentials || loginStarted || signal.aborted) return;
+    void session.login(credentials.user, credentials.passwordMd5).catch(() => undefined);
   };
 
   let snapTimer: ReturnType<typeof setTimeout> | null = null;
@@ -203,6 +256,7 @@ export async function runGuestSession(options: GuestSessionOptions): Promise<voi
       });
       emitJson({ type: "status", status: "unverified" });
     }
+    maybeLogin();
   }, SYNC_MS);
 
   let heartbeat: ReturnType<typeof setInterval> | null = null;
@@ -211,12 +265,18 @@ export async function runGuestSession(options: GuestSessionOptions): Promise<voi
   let audioPump = Promise.resolve();
 
   try {
+    registerSession(session);
+    emitJson({ type: "hello", sessionId: session.id });
     emitJson({ type: "status", status: "connecting", detail: `${host}:${controlPort}` });
     await decoder.open();
     control = await connectSocket(host, controlPort, signal);
-    await sendControl("get id");
+    await sendControlNow("get id");
     audio = await connectSocket(host, audioPort, signal);
-    await sendControl("set protocol rcs");
+    await sendControlNow("set protocol rcs");
+    controlReady = true;
+    for (const command of earlyControl.splice(0)) await sendControlNow(command);
+    audioReady = true;
+    for (const bytes of pendingAudio.splice(0)) enqueueWrite(audio, bytes);
 
     const controlReader = new ControlLineReader();
     control.on("data", (chunk: Buffer) => {
@@ -289,10 +349,30 @@ export async function runGuestSession(options: GuestSessionOptions): Promise<voi
         controlLines += 1;
         state.apply(line);
         touchState();
+        if (state.ready) maybeLogin();
         if (line.startsWith("chat::") && state.lastChat) {
           emitJson({ type: "chat", chat: state.lastChat });
         }
+        if (awaitingAuth && line.startsWith("post::radio-open::")) {
+          session.authorised = true;
+          awaitingAuth = false;
+          emitJson({
+            type: "auth",
+            state: "authorised",
+            message: line.slice("post::radio-open::".length).trim(),
+          });
+        }
         const notice = state.noticeFor(line);
+        if (notice?.kind === "auth" && awaitingAuth) {
+          const refused = classifyAuth(notice.text) === "refused";
+          session.authorised = !refused;
+          awaitingAuth = false;
+          emitJson({
+            type: "auth",
+            state: refused ? "refused" : "authorised",
+            message: notice.text,
+          });
+        }
         if (!notice) continue;
         if (notice.kind === "warning" && notice.text.startsWith("The remote closed")) {
           if (notice.text === closedNotice) continue;
@@ -348,6 +428,7 @@ export async function runGuestSession(options: GuestSessionOptions): Promise<voi
     await Promise.allSettled([controlPump, audioPump]);
     decoder.close();
     signal.removeEventListener("abort", onAbort);
+    dropSession(session.id);
     accept = false;
 
     if (ending.reason === "time-limit") {
@@ -368,4 +449,15 @@ export async function runGuestSession(options: GuestSessionOptions): Promise<voi
       });
     }
   }
+}
+
+function classifyAuth(text: string): "authorised" | "refused" {
+  const lower = text.toLowerCase();
+  const refused =
+    /login|password|unauthori|invalid|denied|refused|wrong|unknown user|not authori|fail|reject|forbidden|no access|not allowed|disabled/.test(
+      lower,
+    );
+  const success = /welcome|authorised|authorized|granted|logged in|success|accepted|\bok\b|connected/.test(lower);
+  if (refused && !success) return "refused";
+  return "authorised";
 }

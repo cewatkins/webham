@@ -57,6 +57,8 @@ export type ListenEvent =
   | { type: "chat"; chat: ChatLine }
   | { type: "notice"; notice: NoticeLine }
   | { type: "stats"; stats: ListenStats }
+  | { type: "hello"; sessionId: string }
+  | { type: "auth"; state: "authenticating" | "authorised" | "refused"; message?: string }
   | { type: "end"; reason: "stop" | "link" | "time-limit"; failure?: string };
 
 export function stationKey(station: Pick<Station, "orbId" | "domain" | "controlPort" | "audioPort">): string {

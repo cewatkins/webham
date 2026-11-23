@@ -1,4 +1,5 @@
 import { assertPublicHost, GuardError } from "./guard.server";
+import { validateMd5, validateUser } from "./live-sessions.server";
 import { runGuestSession, type Outbound } from "./session.server";
 import type { ListenEvent } from "./types";
 
@@ -7,7 +8,14 @@ let activeSessions = 0;
 
 const HOST_RE = /^[A-Za-z0-9.\-:[\]]{1,253}$/;
 
-export function parseListenBody(body: unknown): { host: string; controlPort: number; audioPort: number } | string {
+export type ListenRequest = {
+  host: string;
+  controlPort: number;
+  audioPort: number;
+  credentials: { user: string; passwordMd5: string } | null;
+};
+
+export function parseListenBody(body: unknown): ListenRequest | string {
   if (!body || typeof body !== "object") return "Missing station.";
   const record = body as Record<string, unknown>;
   const host = typeof record.host === "string" ? record.host.trim() : "";
@@ -17,7 +25,14 @@ export function parseListenBody(body: unknown): { host: string; controlPort: num
   if (!Number.isInteger(controlPort) || controlPort < 1 || controlPort > 65535) return "Control port is invalid.";
   if (!Number.isInteger(audioPort) || audioPort < 1 || audioPort > 65535) return "Audio port is invalid.";
   if (audioPort === controlPort) return "Audio and control ports have to be different.";
-  return { host, controlPort, audioPort };
+
+  const user = typeof record.user === "string" ? record.user.trim() : "";
+  const passwordMd5 = typeof record.passwordMd5 === "string" ? record.passwordMd5.trim().toLowerCase() : "";
+  if (!user && !passwordMd5) return { host, controlPort, audioPort, credentials: null };
+  const userError = validateUser(user);
+  if (userError) return userError;
+  if (!validateMd5(passwordMd5)) return "The password did not hash.";
+  return { host, controlPort, audioPort, credentials: { user, passwordMd5 } };
 }
 
 function frame(type: number, payload: Uint8Array): Uint8Array {
@@ -82,6 +97,7 @@ export async function handleListen(request: Request): Promise<Response> {
           host: address,
           controlPort: parsed.controlPort,
           audioPort: parsed.audioPort,
+          credentials: parsed.credentials,
           signal: sessionAbort.signal,
           emit,
         });

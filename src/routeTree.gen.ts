@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiDirectoryRouteImport } from './routes/api/directory'
 import { Route as ApiListenRouteImport } from './routes/api/listen'
+import { Route as ApiListenCommandRouteImport } from './routes/api/listen-command'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +29,45 @@ const ApiListenRoute = ApiListenRouteImport.update({
   path: '/api/listen',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiListenCommandRoute = ApiListenCommandRouteImport.update({
+  id: '/api/listen-command',
+  path: '/api/listen-command',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/directory': typeof ApiDirectoryRoute
   '/api/listen': typeof ApiListenRoute
+  '/api/listen-command': typeof ApiListenCommandRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/directory': typeof ApiDirectoryRoute
   '/api/listen': typeof ApiListenRoute
+  '/api/listen-command': typeof ApiListenCommandRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/directory': typeof ApiDirectoryRoute
   '/api/listen': typeof ApiListenRoute
+  '/api/listen-command': typeof ApiListenCommandRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/directory' | '/api/listen'
+  fullPaths: '/' | '/api/directory' | '/api/listen' | '/api/listen-command'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/directory' | '/api/listen'
-  id: '__root__' | '/' | '/api/directory' | '/api/listen'
+  to: '/' | '/api/directory' | '/api/listen' | '/api/listen-command'
+  id:
+    '__root__' | '/' | '/api/directory' | '/api/listen' | '/api/listen-command'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiDirectoryRoute: typeof ApiDirectoryRoute
   ApiListenRoute: typeof ApiListenRoute
+  ApiListenCommandRoute: typeof ApiListenCommandRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +93,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiListenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/listen-command': {
+      id: '/api/listen-command'
+      path: '/api/listen-command'
+      fullPath: '/api/listen-command'
+      preLoaderRoute: typeof ApiListenCommandRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +107,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiDirectoryRoute: ApiDirectoryRoute,
   ApiListenRoute: ApiListenRoute,
+  ApiListenCommandRoute: ApiListenCommandRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

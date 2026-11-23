@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { Copy } from "lucide-react";
 import { formatFrequency, parseMeter } from "@/lib/rcforb/format";
 import type { PcmPlayer } from "@/lib/rcforb/playback";
 import { scopePoints } from "@/lib/rcforb/playback";
@@ -25,6 +26,8 @@ const LINK_LABEL = {
 export function RadioFace({ station, snapshot, link, detail, elapsed, waveRef, playerRef }: RadioFaceProps) {
   const scopeRef = useRef<SVGPolylineElement>(null);
   const [level, setLevel] = useState(0);
+  const [peak, setPeak] = useState(0);
+  const [copied, setCopied] = useState(false);
   const frequency = formatFrequency(snapshot?.frequencyText);
   const vfoB = snapshot?.frequencyBText ? formatFrequency(snapshot.frequencyBText) : null;
   const meter = parseMeter(snapshot?.sMeter ?? "");
@@ -50,11 +53,36 @@ export function RadioFace({ station, snapshot, link, detail, elapsed, waveRef, p
     return () => cancelAnimationFrame(frame);
   }, [playerRef, waveRef]);
 
+  useEffect(() => {
+    const parsed = parseMeter(snapshot?.sMeter ?? "");
+    if (!parsed) return;
+    const next = Math.max(0, Math.min(100, (parsed.value / parsed.max) * 100));
+    setPeak((current) => Math.max(current, next));
+  }, [snapshot?.sMeter]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPeak((current) => (current <= 0 ? current : Math.max(0, current - 0.8)));
+    }, 80);
+    return () => clearInterval(timer);
+  }, []);
+
+  async function copyFrequency() {
+    const text = frequency.unit ? `${frequency.digits} ${frequency.unit}` : frequency.digits;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch {
+      setCopied(false);
+    }
+  }
+
   return (
     <section className="rounded-lg border border-line bg-surface p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="rounded-full border border-amber px-2.5 py-1 text-xs font-semibold tracking-widest text-amber">
-          LISTEN ONLY
+          NO TRANSMIT
         </p>
         <p className="font-mono text-sm text-muted">
           <span className={link === "live" ? "text-amber" : "text-fg"}>{LINK_LABEL[link]}</span>
@@ -74,7 +102,17 @@ export function RadioFace({ station, snapshot, link, detail, elapsed, waveRef, p
       </div>
 
       <div className="mt-4 rounded-lg border border-line bg-bg px-4 py-4">
-        <p className="font-mono text-4xl tracking-tight text-amber tabular-nums sm:text-5xl">{frequency.digits}</p>
+        <div className="flex items-start justify-between gap-3">
+          <p className="font-mono text-4xl tracking-tight text-amber tabular-nums sm:text-5xl">{frequency.digits}</p>
+          <button
+            type="button"
+            onClick={() => void copyFrequency()}
+            className="inline-flex h-11 items-center gap-1 rounded-lg border border-line px-2 text-xs text-muted hover:text-fg"
+          >
+            <Copy className="size-3.5" />
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
           {frequency.unit ? <span className="text-muted">{frequency.unit}</span> : null}
           {snapshot?.mode ? <Readout label={snapshot.mode} /> : null}
@@ -93,8 +131,9 @@ export function RadioFace({ station, snapshot, link, detail, elapsed, waveRef, p
           <p className="text-xs font-medium tracking-widest text-muted">S-METER</p>
           <p className="font-mono text-lg text-amber">{meter?.label || snapshot?.sMeter || "—"}</p>
         </div>
-        <div className="mt-2 h-3 overflow-hidden rounded-full bg-bg" aria-hidden="true">
+        <div className="relative mt-2 h-3 overflow-hidden rounded-full bg-bg" aria-hidden="true">
           <div className="h-full bg-amber" style={{ width: `${meterPct}%` }} />
+          <span className="absolute top-0 h-full w-0.5 bg-fg" style={{ left: `${peak}%` }} />
         </div>
         <div className="mt-1 flex justify-between font-mono text-xs text-muted">
           <span>S0</span>
